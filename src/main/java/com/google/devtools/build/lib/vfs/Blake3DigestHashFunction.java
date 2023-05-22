@@ -115,6 +115,8 @@ final class Blake3DigestHashFunction extends AbstractHashFunction {
     public HashCode hash() {
       checkNotDone();
       done = true;
+      // XXX: This uses fromBytesNoCopy in guava, which isn't public, so there's
+      // an extra copy here.
       return (bytes == digest.getDigestLength())
           ? HashCode.fromBytes(digest.digest())
           : HashCode.fromBytes(Arrays.copyOf(digest.digest(), bytes));
