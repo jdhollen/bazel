@@ -190,6 +190,9 @@ public class DigestHashFunction {
 
   private MessageDigest getMessageDigestInstance() {
     try {
+      if (name == "BLAKE3") {
+        return new Blake3MessageDigest(new BouncyBlake3());
+      }
       return MessageDigest.getInstance(name);
     } catch (NoSuchAlgorithmException e) {
       // We check when we register() this digest function that the message digest exists. This

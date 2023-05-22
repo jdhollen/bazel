@@ -59,11 +59,7 @@ final class Blake3DigestHashFunction extends AbstractHashFunction {
   }
 
   private static MessageDigest getMessageDigest(String algorithmName) {
-    try {
-      return MessageDigest.getInstance(algorithmName);
-    } catch (NoSuchAlgorithmException e) {
-      throw new AssertionError(e);
-    }
+      return new Blake3MessageDigest(new BouncyBlake3());
   }
 
   @Override
