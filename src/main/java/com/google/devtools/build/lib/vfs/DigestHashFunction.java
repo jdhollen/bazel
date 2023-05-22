@@ -67,6 +67,7 @@ public class DigestHashFunction {
 
   public static final DigestHashFunction SHA1 = register(Hashing.sha1(), "SHA-1", "SHA1");
   public static final DigestHashFunction SHA256 = register(Hashing.sha256(), "SHA-256", "SHA256");
+  public static final DigestHashFunction BLAKE3 = register(new Blake3DigestHashFunction(), new Blake3MessageDigest(new BouncyBlake3()), "BLAKE3", "Blake3");
 
   private final HashFunction hashFunction;
   private final DigestLength digestLength;
@@ -76,19 +77,39 @@ public class DigestHashFunction {
   private final ImmutableList<String> names;
 
   private DigestHashFunction(
-      HashFunction hashFunction, DigestLength digestLength, ImmutableList<String> names) {
+      HashFunction hashFunction, MessageDigest messageDigest, DigestLength digestLength, ImmutableList<String> names) {
     this.hashFunction = hashFunction;
     this.digestLength = digestLength;
     checkArgument(!names.isEmpty());
     this.name = names.get(0);
     this.names = names;
-    this.messageDigestPrototype = getMessageDigestInstance();
-    this.messageDigestPrototypeSupportsClone = supportsClone(messageDigestPrototype);
+    this.messageDigestPrototype = messageDigest;
+    this.messageDigestPrototypeSupportsClone = supportsClone(messageDigest);
   }
 
   public static DigestHashFunction register(
       HashFunction hash, String hashName, String... altNames) {
     return register(hash, new DigestLengthImpl(hash), hashName, altNames);
+  }
+
+
+  public static DigestHashFunction register(
+    HashFunction hash, DigestLength digestLength, String hashName, String... altNames) {
+    try {
+      var messageDigest = MessageDigest.getInstance(hashName);
+      return register(hash, messageDigest, digestLength, hashName, altNames);
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalArgumentException(
+          "The hash function name provided does not correspond to a valid MessageDigest: "
+              + hashName,
+          e);
+    }
+  }
+
+
+  public static DigestHashFunction register(
+    HashFunction hash,  MessageDigest messageDigest, String hashName, String... altNames) {
+      return register(hash, messageDigest, new DigestLengthImpl(hash), hashName, altNames);
   }
 
   /**
@@ -103,19 +124,11 @@ public class DigestHashFunction {
    * @throws IllegalArgumentException if the name is already registered.
    */
   public static DigestHashFunction register(
-      HashFunction hash, DigestLength digestLength, String hashName, String... altNames) {
-    try {
-      MessageDigest.getInstance(hashName);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalArgumentException(
-          "The hash function name provided does not correspond to a valid MessageDigest: "
-              + hashName,
-          e);
-    }
+      HashFunction hash, MessageDigest messageDigest, DigestLength digestLength, String hashName, String... altNames) {
 
     ImmutableList<String> names =
         ImmutableList.<String>builder().add(hashName).add(altNames).build();
-    DigestHashFunction hashFunction = new DigestHashFunction(hash, digestLength, names);
+    DigestHashFunction hashFunction = new DigestHashFunction(hash, messageDigest, digestLength, names);
     synchronized (hashFunctionRegistry) {
       for (String name : names) {
         if (hashFunctionRegistry.containsKey(name)) {
