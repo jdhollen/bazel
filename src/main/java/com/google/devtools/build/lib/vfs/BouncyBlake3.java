@@ -154,7 +154,15 @@ public class BouncyBlake3
     /**
      * Message word permutations.
      */
-    private static final byte[] SIGMA = {2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8};
+    private static final byte[][] SIGMA = {
+        {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+        {2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8},
+        {3, 4, 10, 12, 13, 2, 7, 14, 6, 5, 9, 0, 11, 15, 8, 1},
+        {10, 7, 12, 9, 14, 3, 13, 15, 4, 0, 11, 2, 5, 8, 1, 6},
+        {12, 13, 9, 11, 15, 10, 14, 8, 7, 2, 5, 3, 0, 1, 6, 4},
+        {9, 14, 11, 5, 8, 12, 15, 1, 13, 3, 0, 10, 2, 6, 4, 7},
+        {11, 15, 5, 0, 1, 9, 8, 6, 14, 10, 2, 12, 3, 4, 7, 13},
+    };
 
     /**
      * Blake3 Initialization Vector.
@@ -191,7 +199,7 @@ public class BouncyBlake3
     /**
      * The indices.
      */
-    private final byte[] theIndices = new byte[NUMWORDS << 1];
+    private byte[] theIndices = SIGMA[0];
 
     /**
      * The chainingStack.
@@ -287,10 +295,6 @@ public class BouncyBlake3
      */
     public void init()
     {
-        /* Access key/context */
-        final byte[] myKey = null;
-        final byte[] myContext = null;
-
         /* Reset the digest */
         reset();
         initNullKey();
@@ -340,6 +344,7 @@ public class BouncyBlake3
         }
 
         /* Process any bytes currently in the buffer */
+        boolean reset = false;
         int remainingLen = 0; // left bytes of buffer
         if (thePos != 0)
         {
@@ -361,9 +366,10 @@ public class BouncyBlake3
             /* Process the buffer */
             compressBlock(theBuffer, 0);
 
+            reset = true;
             /* Reset the buffer */
             thePos = 0;
-            fill(theBuffer, (byte)0);
+            //fill(theBuffer, (byte)0);
         }
 
         /* process all blocks except the last one */
@@ -379,6 +385,7 @@ public class BouncyBlake3
         final int len = pLen - messagePos;
         System.arraycopy(pMessage, messagePos, theBuffer, 0, pOffset + len);
         thePos += pOffset + len;
+        fill(theBuffer, thePos, BLOCKLEN, (byte)0);
     }
 
     public int doFinal(final byte[] pOutput,
@@ -587,36 +594,45 @@ public class BouncyBlake3
      */
     private void compress()
     {
-        /* Initialise the buffers */
-        initIndices();
-
-        /* Loop through the rounds */
-        for (int round = 0; round < ROUNDS - 1; round++)
-        {
-            /* Perform the round and permuteM */
-            performRound();
-            permuteIndices();
-        }
-        performRound();
+        performRound(0);
+        performRound(1);
+        performRound(2);
+        performRound(3);
+        performRound(4);
+        performRound(5);
+        performRound(6);
         adjustChaining();
     }
 
     /**
      * Perform a round.
      */
-    private void performRound()
+    private void performRound(int round)
     {
-        /* Apply to columns of V */
-        mixG(0, CHAINING0, CHAINING4, IV0, COUNT0);
-        mixG(1, CHAINING1, CHAINING5, IV1, COUNT1);
-        mixG(2, CHAINING2, CHAINING6, IV2, DATALEN);
-        mixG(3, CHAINING3, CHAINING7, IV3, FLAGS);
+        theIndices = SIGMA[round];
+        
+        mixG(CHAINING0, CHAINING4, IV0, COUNT0, theM[0],theM[1]);
+        mixG(CHAINING1, CHAINING5, IV1, COUNT1, theM[2],theM[3]);
+        mixG(CHAINING2, CHAINING6, IV2, DATALEN, theM[4],theM[5]);
+        mixG(CHAINING3, CHAINING7, IV3, FLAGS, theM[6],theM[7]);
 
         /* Apply to diagonals of V */
-        mixG(4, CHAINING0, CHAINING5, IV2, FLAGS);
-        mixG(5, CHAINING1, CHAINING6, IV3, COUNT0);
-        mixG(6, CHAINING2, CHAINING7, IV0, COUNT1);
-        mixG(7, CHAINING3, CHAINING4, IV1, DATALEN);
+        mixG(CHAINING0, CHAINING5, IV2, FLAGS, theM[8],theM[9]);
+        mixG(CHAINING1, CHAINING6, IV3, COUNT0, theM[10],theM[11]);
+        mixG(CHAINING2, CHAINING7, IV0, COUNT1, theM[12],theM[13]);
+        mixG(CHAINING3, CHAINING4, IV1, DATALEN, theM[14],theM[15]);
+
+        // /* Apply to columns of V */
+        // mixG(CHAINING0, CHAINING4, IV0, COUNT0, theM[theIndices[0]],theM[theIndices[1]]);
+        // mixG(CHAINING1, CHAINING5, IV1, COUNT1, theM[theIndices[2]],theM[theIndices[3]]);
+        // mixG(CHAINING2, CHAINING6, IV2, DATALEN, theM[theIndices[4]],theM[theIndices[5]]);
+        // mixG(CHAINING3, CHAINING7, IV3, FLAGS, theM[theIndices[6]],theM[theIndices[7]]);
+
+        // /* Apply to diagonals of V */
+        // mixG(CHAINING0, CHAINING5, IV2, FLAGS, theM[theIndices[8]],theM[theIndices[9]]);
+        // mixG(CHAINING1, CHAINING6, IV3, COUNT0, theM[theIndices[10]],theM[theIndices[11]]);
+        // mixG(CHAINING2, CHAINING7, IV0, COUNT1, theM[theIndices[12]],theM[theIndices[13]]);
+        // mixG(CHAINING3, CHAINING4, IV1, DATALEN, theM[theIndices[14]],theM[theIndices[15]]);
     }
 
     /**
@@ -682,7 +698,7 @@ public class BouncyBlake3
 
     public static int rotateRight(int i, int distance)
     {
-        return Integer.rotateRight(i, distance);
+        return (i >>> distance) | (i << -distance);
     }
 
     /**
@@ -694,24 +710,31 @@ public class BouncyBlake3
      * @param posC   position C in V
      * @param posD   poistion D in V
      */
-    private void mixG(final int msgIdx,
-                      final int posA,
+    private void mixG(final int posA,
                       final int posB,
                       final int posC,
-                      final int posD)
+                      final int posD,
+                      final int x,
+                      final int y)
     {
-        /* Determine indices */
-        int msg = msgIdx << 1;
-
         /* Perform the Round */
-        theV[posA] += theV[posB] + theM[theIndices[msg++]];
-        theV[posD] = rotateRight(theV[posD] ^ theV[posA], 16);
+        int i;
+        theV[posA] += theV[posB] + x;
+
+        i = theV[posD] ^ theV[posA];
+        theV[posD] = (i >>> 16) | (i << 16);
         theV[posC] += theV[posD];
-        theV[posB] = rotateRight(theV[posB] ^ theV[posC], 12);
-        theV[posA] += theV[posB] + theM[theIndices[msg]];
-        theV[posD] = rotateRight(theV[posD] ^ theV[posA], 8);
+
+        i = theV[posB] ^ theV[posC];
+        theV[posB] = (i >>> 12) | (i << 20);
+        theV[posA] += theV[posB] + y;
+
+        i = theV[posD] ^ theV[posA];
+        theV[posD] = (i >>> 8) | (i << 24);
         theV[posC] += theV[posD];
-        theV[posB] = rotateRight(theV[posB] ^ theV[posC], 7);
+
+        i = theV[posB] ^ theV[posC];
+        theV[posB] = (i >>> 7) | (i << 25);
     }
 
     /**
@@ -719,21 +742,15 @@ public class BouncyBlake3
      */
     private void initIndices()
     {
-        for (byte i = 0; i < theIndices.length; i++)
-        {
-            theIndices[i] = i;
-        }
+        theIndices = SIGMA[0];
     }
 
     /**
      * PermuteIndices.
      */
-    private void permuteIndices()
+    private void permuteIndices(int round)
     {
-        for (byte i = 0; i < theIndices.length; i++)
-        {
-            theIndices[i] = SIGMA[theIndices[i]];
-        }
+        
     }
 
     /**
@@ -755,9 +772,15 @@ public class BouncyBlake3
 
     public static void littleEndianToInt(byte[] bs, int off, int[] ns)
     {
+        int inneroff = off;
         for (int i = 0; i < ns.length; ++i)
         {
-            ns[i] = littleEndianToInt(bs, off);
+            inneroff = off;
+            int n = bs[inneroff] & 0xff;
+            n |= (bs[++inneroff] & 0xff) << 8;
+            n |= (bs[++inneroff] & 0xff) << 16;
+            n |= bs[++inneroff] << 24;
+            ns[i] = n;
             off += 4;
         }
     }

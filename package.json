@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@bazel/bazelisk": "^0.0.0-PLACEHOLDER"
+  }
+}

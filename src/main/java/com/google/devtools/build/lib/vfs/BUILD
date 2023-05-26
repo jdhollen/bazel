@@ -1,4 +1,4 @@
-load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_java//java:defs.bzl", "java_library", "java_binary")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -25,6 +25,20 @@ PATH_FRAGMENT_SOURCES = [
 OUTPUT_SERVICE_SOURCES = [
     "OutputService.java",
 ]
+
+
+java_binary(
+    name = "AHashCli",
+    main_class = "com.google.devtools.build.lib.vfs.AHashCli",
+    deps = [
+        ":vfs",
+        "//src/main/java/com/google/devtools/build/lib/hash",
+        "//third_party:guava",
+    ],
+    srcs = [
+        "AHashCli.java",
+    ],
+)
 
 java_library(
     name = "ospathpolicy",
@@ -66,6 +80,7 @@ java_library(
         ":pathfragment",
         "//src/main/java/com/google/devtools/build/lib/clock",
         "//src/main/java/com/google/devtools/build/lib/concurrent",
+        "//src/main/java/com/google/devtools/build/lib/hash",
         "//src/main/java/com/google/devtools/build/lib/io:file_symlink_exception",
         "//src/main/java/com/google/devtools/build/lib/profiler",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec",
